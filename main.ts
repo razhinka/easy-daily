@@ -25,7 +25,6 @@ export default class EasyDaily extends Plugin {
         const vault = this.app.vault;
         let templateContent = '';
         
-        // Read template if set
         if (this.settings.dailyTemplate) {
             const templateFile = vault.getFileByPath(this.settings.dailyTemplate);
             if (templateFile) {
@@ -33,7 +32,6 @@ export default class EasyDaily extends Plugin {
             }
         }
         
-        // Get daily folder
         const folder = vault.getFolderByPath(this.settings.dailyFolder);
         if (folder?.children) {
             for (const file of folder.children) {
@@ -42,6 +40,12 @@ export default class EasyDaily extends Plugin {
                     if ((content === templateContent || content.length === 0) && !this.isNowDate(file.name)) {
                         await vault.delete(file);
                         console.log(`Deleted: ${file.path}`);
+                    }
+                    else {
+                        const utcDate = this.parseDateSimple(file.basename, this.settings.dateFormat) 
+                        if (utcDate && utcDate < this.getStartOfCurrentMonthUTC()) {
+                            await this.app.vault.rename(file, "daily/old/"+file.name);
+                        }
                     }
                 }
             }
@@ -56,15 +60,14 @@ export default class EasyDaily extends Plugin {
         await this.saveData(this.settings);
     }
 
-    formatDate(mask: string): string {
-        const now = new Date();
-    
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        const day = now.getDate();
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        const seconds = now.getSeconds();
+    formatDate(mask: string, date: Date): string {
+        
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        const seconds = date.getSeconds();
         
         const YYYY = year.toString();
         const YY = YYYY.slice(-2);
@@ -98,13 +101,101 @@ export default class EasyDaily extends Plugin {
         if (this.settings.dateFormat == undefined) {
             this.settings.dateFormat = "YYYY-MM-DD";
         }
-
-        console.log(this.formatDate(this.settings.dateFormat), name);
-
-        if (this.formatDate(this.settings.dateFormat) + '.md' == name) {
+        if (this.formatDate(this.settings.dateFormat, new Date()) + '.md' == name) {
             return true;
         }
         return false;
+    }
+
+    parseDateSimple(dateStr: string, mask: string): number | null {
+        // Поддерживаемые маски
+        const formats: Record<string, RegExp> = {
+            'YYYY-MM-DD': /^(\d{4})-(\d{2})-(\d{2})$/,
+            'DD.MM.YYYY': /^(\d{2})\.(\d{2})\.(\d{4})$/,
+            'YYYY/MM/DD': /^(\d{4})\/(\d{2})\/(\d{2})$/,
+            'YYYY-MM-DD HH:mm': /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/,
+            'YYYY-MM-DD HH:mm:ss': /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+        };
+        
+        if (!formats[mask]) {
+            console.error(`Неподдерживаемая маска: ${mask}`);
+            return null;
+        }
+        
+        const match = dateStr.match(formats[mask]);
+        if (!match) {
+            console.error(`Дата "${dateStr}" не соответствует маске "${mask}"`);
+            return null;
+        }
+        
+        try {
+            // Объявляем переменные со значениями по умолчанию
+            let year: number = 0;
+            let month: number = 0;
+            let day: number = 1;
+            let hour: number = 0;
+            let minute: number = 0;
+            let second: number = 0;
+            
+            // Парсим в зависимости от маски
+            switch(mask) {
+                case 'YYYY-MM-DD':
+                case 'YYYY/MM/DD':
+                    year = parseInt(match[1]);
+                    month = parseInt(match[2]);
+                    day = parseInt(match[3]);
+                    break;
+                    
+                case 'DD.MM.YYYY':
+                    day = parseInt(match[1]);
+                    month = parseInt(match[2]);
+                    year = parseInt(match[3]);
+                    break;
+                    
+                case 'YYYY-MM-DD HH:mm':
+                    year = parseInt(match[1]);
+                    month = parseInt(match[2]);
+                    day = parseInt(match[3]);
+                    hour = parseInt(match[4]);
+                    minute = parseInt(match[5]);
+                    break;
+                    
+                case 'YYYY-MM-DD HH:mm:ss':
+                    year = parseInt(match[1]);
+                    month = parseInt(match[2]);
+                    day = parseInt(match[3]);
+                    hour = parseInt(match[4]);
+                    minute = parseInt(match[5]);
+                    second = parseInt(match[6]);
+                    break;
+                    
+                default:
+                    return null;
+            }
+            
+            // Проверяем корректность значений
+            if (isNaN(year) || isNaN(month) || isNaN(day)) {
+                console.error('Некорректные значения даты');
+                return null;
+            }
+            
+            // Месяцы в JavaScript: 0-11
+            const utcTimestamp = Date.UTC(year, month - 1, day, hour, minute, second);
+            return utcTimestamp;
+        } catch (error) {
+            console.error('Ошибка парсинга:', error);
+            return null;
+        }
+    }
+
+    getStartOfCurrentMonthUTC(): number {
+        const now = new Date();
+        
+        // Создаем дату начала месяца (1 число) в локальном часовом поясе
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        // Возвращаем timestamp в UTC
+        return startOfMonth.getTime();
     }
 }
 
