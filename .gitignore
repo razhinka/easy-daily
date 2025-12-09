@@ -19,6 +19,3 @@ Thumbs.db
 # Obsidian
 main.js
 manifest.json
-
-# Временно - не коммитим скомпилированные файлы
-# (потом настроим GitHub Actions для автоматической сборки)
