@@ -1,9 +1,10 @@
 {
   "id": "easy-daily",
   "name": "EasyDaily",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "minAppVersion": "1.5.0",
   "author": "razhinka",
+  "authorUrl": "https://github.com/razhinka",
   "description": "Plugin for processing daily notes",
   "isDesktopOnly": false
 }
