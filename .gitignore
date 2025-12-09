@@ -1,0 +1,24 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+dist/
+*.js.map
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Obsidian
+main.js
+manifest.json
+
+# Временно - не коммитим скомпилированные файлы
+# (потом настроим GitHub Actions для автоматической сборки)
